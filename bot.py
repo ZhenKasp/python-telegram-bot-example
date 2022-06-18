@@ -4,14 +4,12 @@ import pdb
 import datetime
 import pytz
 
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
+from telegram import *
+from telegram.ext import *
 from dotenv import load_dotenv
 
 from api.open_weather_map import OpenWeatherMap
 from services.data_preparer_service import DataPreparerService
-
-def start(update, context):
-    update.message.reply_text('Hi!')
 
 def help(update, context):
     update.message.reply_text('Help!')
@@ -30,11 +28,13 @@ def schedule_message(update, context):
                                 context = chat_id)
         print('daily job: ', daily_job.next_t)
 
-def stop_job(update, context):
-    context.job.stop()
-    update.message.reply_text('Stopped!')
+def message(update, context: CallbackContext):
+    job = updater.job_queue
+    chat_id = update.effective_chat.id
 
-def send_common_information(context: CallbackContext):
+    job.run_once(send_common_information, 0, context = chat_id)
+
+def send_common_information(context):
     data = OpenWeatherMap().get_weather_by_city_name('Batumi')
     weather_information = DataPreparerService().prepare_weather_data(data)
 
@@ -55,12 +55,9 @@ def main():
 
     dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('help', help))
     dp.add_handler(CommandHandler('schedule_message', schedule_message))
-    dp.add_handler(CommandHandler('job_stop', stop_job))
-
-    dp.add_handler(MessageHandler(Filters.text, echo))
+    dp.add_handler(CommandHandler('common_information', message))
 
     dp.add_error_handler(error)
 
